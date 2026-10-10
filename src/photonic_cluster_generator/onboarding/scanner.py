@@ -8,6 +8,7 @@ from typing import Iterable
 
 import gdstk
 from ..models import Layer, SpecError
+from ..preview import exact_preview_points
 
 
 @dataclass(frozen=True)
@@ -140,17 +141,6 @@ def _candidate_for_facet(
     )
 
 
-def _preview_points(points: object, max_points: int = 180) -> list[list[float]]:
-    values = [[round(float(x), 6), round(float(y), 6)] for x, y in points]
-    if len(values) <= max_points:
-        return values
-    stride = math.ceil(len(values) / max_points)
-    sampled = values[::stride]
-    if values[-1] != sampled[-1]:
-        sampled.append(values[-1])
-    return sampled
-
-
 def _cell_polygons(cell: object) -> list[object]:
     polygons = cell.get_polygons(
         apply_repetitions=True,
@@ -200,7 +190,7 @@ def _scan_selected_cell(
         layer = int(polygon.layer), int(polygon.datatype)
         by_layer.setdefault(layer, []).append(polygon)
         preview.setdefault(f"{layer[0]}/{layer[1]}", []).append(
-            _preview_points(polygon.points)
+            exact_preview_points(polygon.points)
         )
         all_x.extend(float(point[0]) for point in polygon.points)
         all_y.extend(float(point[1]) for point in polygon.points)

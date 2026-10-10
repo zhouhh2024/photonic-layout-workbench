@@ -14,6 +14,7 @@ from ..assembly import Assembly, DeviceLibrary
 from ..library import build_device
 from ..models import SpecError, TechnologySpec
 from ..onboarding.registry import load_registry_catalog
+from ..preview import exact_preview_points
 from ..onboarding.server import (
     OnboardingSession,
     _PAGE as ONBOARDING_PAGE,
@@ -227,17 +228,6 @@ def build_editor_library(
     return entries
 
 
-def _preview_points(points: object, max_points: int = 240) -> list[list[float]]:
-    values = [[round(float(x), 6), round(float(y), 6)] for x, y in points]
-    if len(values) <= max_points:
-        return values
-    stride = math.ceil(len(values) / max_points)
-    sampled = values[::stride]
-    if sampled[-1] != values[-1]:
-        sampled.append(values[-1])
-    return sampled
-
-
 def build_device_preview(
     descriptor: dict[str, object],
     parameters: dict[str, object] | None = None,
@@ -259,7 +249,7 @@ def build_device_preview(
         key = f"{int(layer[0])}/{int(layer[1])}"
         layers[key] = []
         for polygon in polygons:
-            points = _preview_points(polygon)
+            points = exact_preview_points(polygon)
             layers[key].append(points)
             all_x.extend(point[0] for point in points)
             all_y.extend(point[1] for point in points)

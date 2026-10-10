@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
@@ -23,6 +24,7 @@ from photonic_cluster_generator.models import SpecError, TechnologySpec
 from photonic_cluster_generator.onboarding.registry import DeviceRegistry
 from photonic_cluster_generator.onboarding.scanner import scan_gds_file, scan_gds_folder
 from photonic_cluster_generator.onboarding.server import OnboardingSession, _PAGE, _summary
+from photonic_cluster_generator.preview import exact_preview_points
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +82,27 @@ def _register_public_test_device(
 
 
 class BlackBoxOnboardingTests(unittest.TestCase):
+    def test_preview_reduction_preserves_every_polygon_turn(self) -> None:
+        points = []
+        points.extend((index / 100.0, 0.0) for index in range(1001))
+        points.extend((10.0, index / 100.0) for index in range(1, 101))
+        points.extend((10.0 - index / 100.0, 1.0) for index in range(1, 1001))
+        points.extend((0.0, 1.0 - index / 100.0) for index in range(1, 101))
+
+        reduced = exact_preview_points(points)
+        self.assertEqual(reduced, [[0.0, 0.0], [10.0, 0.0], [10.0, 1.0], [0.0, 1.0]])
+
+        curved = [
+            (
+                math.cos(2.0 * math.pi * index / 720.0),
+                math.sin(2.0 * math.pi * index / 720.0),
+            )
+            for index in range(720)
+        ]
+        curved_preview = exact_preview_points(curved)
+        self.assertEqual(len(curved_preview), len(curved))
+        self.assertIn([1.0, 0.0], curved_preview)
+
     def test_folder_scan_ignores_geometryless_top_level_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
