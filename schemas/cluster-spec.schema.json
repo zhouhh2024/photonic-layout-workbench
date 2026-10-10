@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.example/photonic-cluster-generator/cluster-spec.schema.json",
+  "title": "Hierarchical photonic LVS cluster specification",
+  "type": "object",
+  "required": ["schema_version", "cluster_name", "instances", "nets", "external_ports"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "cluster_name": {"allOf": [{"$ref": "#/$defs/identifier"}, {"maxLength": 32}]},
+    "technology": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "si_layer": {"$ref": "#/$defs/layer"},
+        "sin_layer": {"$ref": "#/$defs/layer"},
+        "label_layer": {"$ref": "#/$defs/layer"},
+        "pin_layer": {"$ref": "#/$defs/layer"},
+        "default_si_width_um": {"type": "number", "exclusiveMinimum": 0},
+        "default_sin_width_um": {"type": "number", "exclusiveMinimum": 0},
+        "default_bend_radius_um": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "instances": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "component", "placement"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "component": {"$ref": "#/$defs/identifier"},
+          "parameters": {"type": "object"},
+          "placement": {
+            "type": "object",
+            "required": ["x_um", "y_um"],
+            "additionalProperties": false,
+            "properties": {
+              "x_um": {"type": "number"},
+              "y_um": {"type": "number"},
+              "rotation_deg": {"type": "integer", "multipleOf": 90}
+            }
+          }
+        }
+      }
+    },
+    "nets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "terminals"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "terminals": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {"$ref": "#/$defs/terminal"}
+          },
+          "route": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "direct": {"type": "boolean"},
+              "radius_um": {"type": "number", "exclusiveMinimum": 0},
+              "start_straight_um": {"type": "number", "minimum": 0},
+              "end_straight_um": {"type": "number", "minimum": 0},
+              "waypoints_um": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [{"type": "number"}, {"type": "number"}],
+                  "items": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "external_ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "terminal"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"$ref": "#/$defs/identifier"},
+          "terminal": {"$ref": "#/$defs/terminal"}
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "write_port_labels": {"type": "boolean"},
+        "write_pin_markers": {"type": "boolean"},
+        "pin_marker_length_um": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "require_connected_device_graph": {"type": "boolean"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+    "layer": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [{"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}],
+      "items": false
+    },
+    "terminal": {
+      "type": "object",
+      "required": ["instance", "port"],
+      "additionalProperties": false,
+      "properties": {
+        "instance": {"$ref": "#/$defs/identifier"},
+        "port": {"$ref": "#/$defs/identifier"}
+      }
+    }
+  }
+}

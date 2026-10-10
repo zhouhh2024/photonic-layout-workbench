@@ -1,0 +1,43 @@
+# Python caches and packaging output
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Local environments and editor state
+.venv/
+venv/
+.idea/
+.vscode/
+*.code-workspace
+
+# Generated GDS, reports, previews, netlists, and workspace drafts
+outputs/*
+!outputs/.gitkeep
+
+# Private device libraries and layout IP
+#
+# Registered catalogs contain copied GDS files, hashes, port coordinates, and
+# revision history.  Foundry/PDK assets are local-only as well.  Keep both out
+# of every commit, including files added through the Web workspace.
+device_registry/*
+!device_registry/.gitkeep
+src/photonic_cluster_generator/pdk/*
+*.gds
+*.gds.gz
+*.oas
+*.oasis
+
+# Local integration fixtures derived from non-redistributable device data
+examples/emo1_*.json
+examples/mzi_v5_emo1_topology.json
+reports/*EMO1*
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+desktop.ini

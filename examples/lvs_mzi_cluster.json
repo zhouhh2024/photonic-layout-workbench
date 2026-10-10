@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0.0",
+  "cluster_name": "LVS_MZI_CLUSTER",
+  "technology": {
+    "si_layer": [275, 0],
+    "sin_layer": [263, 0],
+    "label_layer": [200, 0],
+    "pin_layer": [201, 0],
+    "default_si_width_um": 0.6,
+    "default_sin_width_um": 1.0,
+    "default_bend_radius_um": 10.0
+  },
+  "instances": [
+    {
+      "id": "splitter",
+      "component": "mmi_1x2",
+      "parameters": {
+        "material": "si",
+        "port_width_um": 0.6,
+        "width_taper_um": 1.0,
+        "length_taper_um": 8.0,
+        "length_mmi_um": 8.0,
+        "width_mmi_um": 3.2,
+        "gap_mmi_um": 0.4
+      },
+      "placement": {"x_um": 0.0, "y_um": 0.0, "rotation_deg": 0}
+    },
+    {
+      "id": "upper_phase",
+      "component": "straight",
+      "parameters": {"material": "si", "length_um": 40.0, "width_um": 0.6},
+      "placement": {"x_um": 80.0, "y_um": 0.7, "rotation_deg": 0}
+    },
+    {
+      "id": "combiner",
+      "component": "mmi_1x2",
+      "parameters": {
+        "material": "si",
+        "port_width_um": 0.6,
+        "width_taper_um": 1.0,
+        "length_taper_um": 8.0,
+        "length_mmi_um": 8.0,
+        "width_mmi_um": 3.2,
+        "gap_mmi_um": 0.4
+      },
+      "placement": {"x_um": 200.0, "y_um": 0.0, "rotation_deg": 180}
+    }
+  ],
+  "nets": [
+    {
+      "id": "N_UPPER_LEFT",
+      "terminals": [
+        {"instance": "splitter", "port": "o2"},
+        {"instance": "upper_phase", "port": "o1"}
+      ]
+    },
+    {
+      "id": "N_UPPER_RIGHT",
+      "terminals": [
+        {"instance": "upper_phase", "port": "o2"},
+        {"instance": "combiner", "port": "o3"}
+      ]
+    },
+    {
+      "id": "N_LOWER",
+      "terminals": [
+        {"instance": "splitter", "port": "o3"},
+        {"instance": "combiner", "port": "o2"}
+      ]
+    }
+  ],
+  "external_ports": [
+    {"name": "IN", "terminal": {"instance": "splitter", "port": "o1"}},
+    {"name": "OUT", "terminal": {"instance": "combiner", "port": "o1"}}
+  ],
+  "output": {
+    "write_port_labels": true,
+    "write_pin_markers": true,
+    "pin_marker_length_um": 0.8
+  },
+  "require_connected_device_graph": true
+}
