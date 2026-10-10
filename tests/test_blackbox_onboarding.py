@@ -21,7 +21,7 @@ from photonic_cluster_generator.editor.server import (
 from photonic_cluster_generator.library import build_device
 from photonic_cluster_generator.models import SpecError, TechnologySpec
 from photonic_cluster_generator.onboarding.registry import DeviceRegistry
-from photonic_cluster_generator.onboarding.scanner import scan_gds_file
+from photonic_cluster_generator.onboarding.scanner import scan_gds_file, scan_gds_folder
 from photonic_cluster_generator.onboarding.server import OnboardingSession, _PAGE, _summary
 
 
@@ -80,6 +80,58 @@ def _register_public_test_device(
 
 
 class BlackBoxOnboardingTests(unittest.TestCase):
+    def test_folder_scan_ignores_geometryless_top_level_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "device_with_context.gds"
+            library = gdstk.Library()
+            body = library.new_cell("DEVICE_BODY")
+            body.add(gdstk.rectangle((0.0, -0.25), (10.0, 0.25), layer=275))
+            metadata = library.new_cell("EDITOR_METADATA")
+            metadata.add(gdstk.Label("context", (0.0, 0.0), layer=999))
+            metadata.add(gdstk.rectangle((0.0, 0.0), (0.0, 0.0), layer=0))
+            library.write_gds(source)
+
+            self.assertEqual(len(library.top_level()), 2)
+            scans = scan_gds_folder(root)
+            self.assertEqual(len(scans), 1)
+            self.assertEqual(scans[0].top_cell, "DEVICE_BODY")
+            self.assertEqual(scan_gds_file(source).top_cell, "DEVICE_BODY")
+
+    def test_folder_scan_expands_multiple_geometry_top_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "two_devices.gds"
+            library = gdstk.Library()
+            first = library.new_cell("DEVICE_A")
+            first.add(gdstk.rectangle((0.0, -0.25), (10.0, 0.25), layer=275))
+            second = library.new_cell("DEVICE_B")
+            second.add(gdstk.rectangle((0.0, -0.5), (12.0, 0.5), layer=263))
+            library.write_gds(source)
+
+            scans = scan_gds_folder(root)
+            self.assertEqual({scan.top_cell for scan in scans}, {"DEVICE_A", "DEVICE_B"})
+            self.assertEqual(len({scan.device_id for scan in scans}), 2)
+            with self.assertRaisesRegex(SpecError, "geometry-bearing top-level"):
+                scan_gds_file(source)
+            selected = scan_gds_file(source, top_cell="DEVICE_A")
+            self.assertEqual(selected.top_cell, "DEVICE_A")
+
+            catalog = {
+                "templates": {
+                    "registered_a": {
+                        "sha256": selected.source_sha256,
+                        "top_cell": "DEVICE_A",
+                    },
+                    "registered_b": {
+                        "sha256": selected.source_sha256,
+                        "top_cell": "DEVICE_B",
+                    },
+                }
+            }
+            summary = _summary(selected, catalog)
+            self.assertEqual(summary["registered_template_ids"], ["registered_a"])
+
     def test_web_editor_uses_core_snap_and_exports_real_gds(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

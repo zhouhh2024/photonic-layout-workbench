@@ -151,31 +151,45 @@ def _preview_points(points: object, max_points: int = 180) -> list[list[float]]:
     return sampled
 
 
-def scan_gds_file(
-    path: str | Path,
-    *,
-    root: str | Path | None = None,
-    top_cell: str | None = None,
-) -> DeviceScan:
-    source = Path(path).resolve()
-    if not source.is_file() or source.suffix.lower() != ".gds":
-        raise SpecError(f"not a readable GDS file: {source}")
-    library = gdstk.read_gds(source)
-    tops = library.top_level()
-    if top_cell is None:
-        if len(tops) != 1:
-            names = ", ".join(cell.name for cell in tops)
-            raise SpecError(
-                f"{source.name} has {len(tops)} top-level cells ({names}); select one explicitly"
-            )
-        selected = tops[0]
-    else:
-        matches = [cell for cell in library.cells if cell.name == top_cell]
-        if len(matches) != 1:
-            raise SpecError(f"top cell {top_cell!r} not found uniquely in {source.name}")
-        selected = matches[0]
+def _cell_polygons(cell: object) -> list[object]:
+    polygons = cell.get_polygons(
+        apply_repetitions=True,
+        include_paths=True,
+        depth=None,
+    )
+    # Some layout editors encode context records as zero-area polygons.  Such
+    # records are not physical geometry and must not create a device root.
+    valid = []
+    for polygon in polygons:
+        area = float(polygon.area())
+        if math.isfinite(area) and abs(area) > 1e-12:
+            valid.append(polygon)
+    return valid
 
-    polygons = selected.get_polygons(apply_repetitions=True, include_paths=True, depth=None)
+
+def _geometry_top_cells(library: gdstk.Library) -> list[tuple[object, list[object]]]:
+    """Return top-level cells that contribute polygon geometry.
+
+    Metadata-only roots written by layout editors are intentionally excluded
+    by content, not by cell name.  If several roots contain geometry, each is
+    a separate device candidate during folder scanning.
+    """
+    result: list[tuple[object, list[object]]] = []
+    for cell in library.top_level():
+        polygons = _cell_polygons(cell)
+        if polygons:
+            result.append((cell, polygons))
+    return result
+
+
+def _scan_selected_cell(
+    source: Path,
+    library: gdstk.Library,
+    selected: object,
+    polygons: list[object],
+    *,
+    root: str | Path | None,
+) -> DeviceScan:
     if not polygons:
         raise SpecError(f"{source.name}:{selected.name} contains no polygon geometry")
     by_layer: dict[Layer, list[object]] = {}
@@ -237,11 +251,63 @@ def scan_gds_file(
     )
 
 
+def scan_gds_file(
+    path: str | Path,
+    *,
+    root: str | Path | None = None,
+    top_cell: str | None = None,
+) -> DeviceScan:
+    source = Path(path).resolve()
+    if not source.is_file() or source.suffix.lower() != ".gds":
+        raise SpecError(f"not a readable GDS file: {source}")
+    library = gdstk.read_gds(source)
+    if top_cell is None:
+        geometry_tops = _geometry_top_cells(library)
+        if not geometry_tops:
+            raise SpecError(f"{source.name} contains no top-level polygon geometry")
+        if len(geometry_tops) != 1:
+            names = ", ".join(cell.name for cell, _ in geometry_tops)
+            raise SpecError(
+                f"{source.name} has {len(geometry_tops)} geometry-bearing top-level "
+                f"cells ({names}); select one explicitly"
+            )
+        selected, polygons = geometry_tops[0]
+    else:
+        matches = [cell for cell in library.cells if cell.name == top_cell]
+        if len(matches) != 1:
+            raise SpecError(f"top cell {top_cell!r} not found uniquely in {source.name}")
+        selected = matches[0]
+        polygons = _cell_polygons(selected)
+    return _scan_selected_cell(
+        source,
+        library,
+        selected,
+        polygons,
+        root=root,
+    )
+
+
 def scan_gds_folder(folder: str | Path) -> tuple[DeviceScan, ...]:
     root = Path(folder).resolve()
     if not root.is_dir():
         raise SpecError(f"GDS source folder does not exist: {root}")
-    results = [scan_gds_file(path, root=root) for path in sorted(root.rglob("*.gds"))]
+    results: list[DeviceScan] = []
+    for path in sorted(root.rglob("*.gds")):
+        source = path.resolve()
+        library = gdstk.read_gds(source)
+        geometry_tops = _geometry_top_cells(library)
+        if not geometry_tops:
+            raise SpecError(f"{source.name} contains no top-level polygon geometry")
+        for selected, polygons in geometry_tops:
+            results.append(
+                _scan_selected_cell(
+                    source,
+                    library,
+                    selected,
+                    polygons,
+                    root=root,
+                )
+            )
     if not results:
         raise SpecError(f"no .gds files found under {root}")
     return tuple(results)
