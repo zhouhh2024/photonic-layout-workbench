@@ -6,6 +6,63 @@ A unified workbench for photonic device registration, interactive layout assembl
 
 The project works directly with hierarchical, multilayer GDS geometry. It does not use cell names, port labels, or text markers to infer device geometry. Standalone devices are registered through geometry-derived port candidates and manual confirmation, then assembled alongside parametric devices into connected cluster layouts.
 
+## Visual Tour
+
+All images below were produced by the current code using publishable synthetic layouts. They contain no private PDK, registered device, or local source data.
+
+### Layout assembly workspace
+
+![Layout assembly workspace showing a connected synthetic MZI](docs/assets/workspace-overview.png)
+
+| Control or area | Purpose |
+|---|---|
+| **Layout Assembly / Device Registration** | Switch between the two modules without starting another service; both use the same local registry. |
+| **Layout name** | Sets the top-cell and output bundle name. It must be a valid identifier of at most 32 characters. |
+| **Fit Canvas** | Reframes all placed devices and routes in the current viewport. |
+| **Rotate 90°** | Rotates the selected device and its entire connected component as one rigid group. |
+| **Clear** | Removes all devices and connections from the current canvas after confirmation. |
+| **Refresh Library** | Reloads parametric and newly registered templates without restarting the workbench. |
+| **Export and Validate GDS** | Writes hierarchical GDS, netlist, manifest, validation report, and evidence images; final files are published only after read-back validation passes. |
+| **Library search and device cards** | Search by template or family, then drag a card onto the canvas or double-click it to place the device at the viewport center. |
+| **Layer chips** | Show or hide polygons, ports, and connections for each `(layer/datatype)`. |
+| **Canvas** | Drag devices to move them, right-click to edit parameters, and click two compatible unused ports to route a connection. Dragging a connected device moves the whole connected group. |
+| **Draft: Save / Restore / Clear** | Manage the recoverable workspace snapshot. Normal edits are also saved automatically. |
+| **Connections / Delete** | Inspect numbered nets and remove a selected connection; net indexes are compacted after deletion. |
+
+The assembly flow is: place devices → edit parameters and poses → connect compatible ports → inspect layers and nets → export and validate.
+
+### Device registration workspace
+
+![Device registration workspace showing a synthetic hierarchical multilayer GDS](docs/assets/device-registration.png)
+
+| Control or area | Purpose |
+|---|---|
+| **GDS source directory / Scan Directory** | Select a folder at runtime and scan every geometry-bearing top-level cell. Source files remain read-only. |
+| **GDS filter and result list** | Search the scan result and select one device candidate. Each entry summarizes layers and the number of recalled port candidates. |
+| **Layer chips** | Isolate one or more layers while checking a multilayer device. |
+| **− / + / Fit** | Zoom out, zoom in, or center the complete selected geometry. Panning and wheel zoom are also available directly on the canvas. |
+| **Candidate ports** | Review geometry-derived boundary candidates by layer, center, width, orientation, and confidence. Checking a candidate marks it as a real port and exposes its editable name. |
+| **Add Port** | Add a port manually when automatic geometric recall does not provide the required candidate. |
+| **Template ID** | Assign the stable identifier for this physical GDS template version. |
+| **Device family** | Select an existing functional family or create a new one; templates in one family can be exchanged during assembly. |
+| **Save Registration** | Validate the confirmed ports and copy the versioned template into the local `device_registry`. Existing records require explicit update confirmation. |
+
+The registration flow is: scan folder → select a device/top cell → inspect layers → confirm and name real ports → choose the family and template ID → save → refresh the assembly library.
+
+### GDS export evidence
+
+The public `examples/lvs_mzi_cluster.json` demo produces the following artifacts with `validation.json` reporting `passed: true`.
+
+**Annotated hierarchical layout** — device bounds, routed nets, and external ports are labeled on the exported geometry.
+
+![Annotated GDS export for the synthetic MZI demo](docs/assets/export-layout-annotated.png)
+
+**Device atlas** — every instance is isolated with its family, source layer set, and port names for visual review.
+
+![Per-device atlas for the synthetic MZI demo](docs/assets/export-device-atlas.png)
+
+Each successful export also includes the hierarchical `.gds`, structural `.cir`, `editor_spec.json`, `manifest.json`, and `validation.json`. Run `run_demo.ps1` to reproduce this public example locally.
+
 ## Features
 
 - **Device registration**: scan standalone GDS polygons, generate layer-specific port candidates, and confirm real ports manually.
